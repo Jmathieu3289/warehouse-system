@@ -13,9 +13,9 @@ namespace WMSApi.Controllers
     [ApiController]
     public class PalletController : ControllerBase
     {
-        private readonly PalletContext _context;
+        private readonly ApplicationContext _context;
 
-        public PalletController(PalletContext context)
+        public PalletController(ApplicationContext context)
         {
             _context = context;
         }
@@ -87,7 +87,7 @@ namespace WMSApi.Controllers
         {
           if (_context.Pallets == null)
           {
-              return Problem("Entity set 'PalletContext.Pallets'  is null.");
+              return Problem("Entity set 'ApplicationContext.Pallets'  is null.");
           }
             _context.Pallets.Add(pallet);
             await _context.SaveChangesAsync();

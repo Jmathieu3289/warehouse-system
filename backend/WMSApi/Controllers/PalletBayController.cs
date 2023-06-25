@@ -13,9 +13,9 @@ namespace WMSApi.Controllers
     [ApiController]
     public class PalletBayController : ControllerBase
     {
-        private readonly PalletBayContext _context;
+        private readonly ApplicationContext _context;
 
-        public PalletBayController(PalletBayContext context)
+        public PalletBayController(ApplicationContext context)
         {
             _context = context;
         }
@@ -87,7 +87,7 @@ namespace WMSApi.Controllers
         {
           if (_context.PalletBays == null)
           {
-              return Problem("Entity set 'PalletBayContext.PalletBays'  is null.");
+              return Problem("Entity set 'ApplicationContext.PalletBays'  is null.");
           }
             _context.PalletBays.Add(palletBay);
             await _context.SaveChangesAsync();

@@ -13,9 +13,9 @@ namespace WMSApi.Controllers
     [ApiController]
     public class PurchaseOrderItemController : ControllerBase
     {
-        private readonly PurchaseOrderItemContext _context;
+        private readonly ApplicationContext _context;
 
-        public PurchaseOrderItemController(PurchaseOrderItemContext context)
+        public PurchaseOrderItemController(ApplicationContext context)
         {
             _context = context;
         }
@@ -87,7 +87,7 @@ namespace WMSApi.Controllers
         {
           if (_context.PurchaseOrderItems == null)
           {
-              return Problem("Entity set 'PurchaseOrderItemContext.PurchaseOrderItems'  is null.");
+              return Problem("Entity set 'ApplicationContext.PurchaseOrderItems'  is null.");
           }
             _context.PurchaseOrderItems.Add(purchaseOrderItem);
             await _context.SaveChangesAsync();

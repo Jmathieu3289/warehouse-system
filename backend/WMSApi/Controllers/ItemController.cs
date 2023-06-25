@@ -13,9 +13,9 @@ namespace WMSApi.Controllers
     [ApiController]
     public class ItemController : ControllerBase
     {
-        private readonly ItemContext _context;
+        private readonly ApplicationContext _context;
 
-        public ItemController(ItemContext context)
+        public ItemController(ApplicationContext context)
         {
             _context = context;
         }
@@ -52,14 +52,22 @@ namespace WMSApi.Controllers
         // PUT: api/item/5
         // To protect from overiteming attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [HttpPut("{id}")]
-        public async Task<IActionResult> PutItem(long id, Item item)
+        public async Task<IActionResult> PutItem(long id, ItemUpdateDto itemDto)
         {
-            if (id != item.Id)
+            if (id != itemDto.Id)
             {
                 return BadRequest();
             }
 
-            _context.Entry(item).State = EntityState.Modified;
+            var item = await _context.Items.FindAsync(id);
+            if (item == null)
+            {
+                return NotFound();
+            }
+
+            item.Name = itemDto.Name;
+            item.UPC = itemDto.UPC;
+            item.DateLastModified = DateTime.Now;
 
             try
             {
@@ -83,12 +91,21 @@ namespace WMSApi.Controllers
         // POST: api/item
         // To protect from overiteming attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [HttpPost]
-        public async Task<ActionResult<Item>> PostItem(Item item)
+        public async Task<ActionResult<Item>> PostItem(ItemCreateDto itemDTO)
         {
           if (_context.Items == null)
           {
-              return Problem("Entity set 'ItemContext.Itemss'  is null.");
+              return Problem("Entity set 'ApplicationContext.Items' is null.");
           }
+
+            var item = new Item
+            {
+                Name = itemDTO.Name,
+                UPC = itemDTO.UPC,
+                DateCreated = DateTime.Now,
+                DateLastModified = DateTime.Now
+            };
+
             _context.Items.Add(item);
             await _context.SaveChangesAsync();
 
