@@ -52,14 +52,22 @@ namespace WMSApi.Controllers
         // PUT: api/palletBay/5
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [HttpPut("{id}")]
-        public async Task<IActionResult> PutPalletBay(long id, PalletBay palletBay)
+        public async Task<IActionResult> PutPalletBay(long id, PalletBayUpdateDto palletBayDto)
         {
-            if (id != palletBay.Id)
+            if (id != palletBayDto.Id)
             {
                 return BadRequest();
             }
 
-            _context.Entry(palletBay).State = EntityState.Modified;
+            var palletBay = await _context.PalletBays.FindAsync(id);
+            if (palletBay == null)
+            {
+                return NotFound();
+            }
+
+            palletBay.Row = palletBayDto.Row;
+            palletBay.Section = palletBayDto.Section;
+            palletBay.Floor = palletBayDto.Floor;
 
             try
             {
@@ -83,12 +91,20 @@ namespace WMSApi.Controllers
         // POST: api/palletBay
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [HttpPost]
-        public async Task<ActionResult<PalletBay>> PostPalletBay(PalletBay palletBay)
+        public async Task<ActionResult<PalletBay>> PostPalletBay(PalletBayCreateDto palletBayDto)
         {
-          if (_context.PalletBays == null)
-          {
-              return Problem("Entity set 'ApplicationContext.PalletBays'  is null.");
-          }
+            if (_context.PalletBays == null)
+            {
+                return Problem("Entity set 'ApplicationContext.PalletBays' is null.");
+            }
+
+            var palletBay = new PalletBay
+            {
+                Row = palletBayDto.Row,
+                Section = palletBayDto.Section,
+                Floor = palletBayDto.Floor
+            };
+
             _context.PalletBays.Add(palletBay);
             await _context.SaveChangesAsync();
 

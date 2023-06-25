@@ -52,14 +52,32 @@ namespace WMSApi.Controllers
         // PUT: api/pallet/5
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [HttpPut("{id}")]
-        public async Task<IActionResult> PutPallet(long id, Pallet pallet)
+        public async Task<IActionResult> PutPallet(long id, PalletUpdateDto palletDto)
         {
-            if (id != pallet.Id)
+            if (id != palletDto.Id)
             {
                 return BadRequest();
             }
 
-            _context.Entry(pallet).State = EntityState.Modified;
+            var pallet = _context.Pallets.Find(id);
+            if (pallet == null)
+            {
+                return NotFound();
+            }
+
+            if (pallet.PalletBayId != palletDto.PalletBayId)
+            {
+                var palletBay = await _context.PalletBays.FindAsync(palletDto.PalletBayId);
+                if (palletBay == null)
+                {
+                    return BadRequest();
+                }
+                else 
+                {
+                    pallet.PalletBayId = palletDto.PalletBayId;
+                    pallet.PalletBay = palletBay;
+                }
+            }
 
             try
             {
@@ -83,12 +101,25 @@ namespace WMSApi.Controllers
         // POST: api/pallet
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [HttpPost]
-        public async Task<ActionResult<Pallet>> PostPallet(Pallet pallet)
+        public async Task<ActionResult<Pallet>> PostPallet(PalletCreateDto palletDto)
         {
-          if (_context.Pallets == null)
-          {
-              return Problem("Entity set 'ApplicationContext.Pallets'  is null.");
-          }
+            if (_context.Pallets == null)
+            {
+                return Problem("Entity set 'ApplicationContext.Pallets' is null.");
+            }
+
+            var palletBay = await _context.PalletBays.FindAsync(palletDto.PalletBayId);
+            if (palletBay == null)
+            {
+                return BadRequest();
+            }
+
+            var pallet = new Pallet 
+            {
+                PalletBayId = palletDto.PalletBayId,
+                PalletBay = palletBay
+            };
+
             _context.Pallets.Add(pallet);
             await _context.SaveChangesAsync();
 

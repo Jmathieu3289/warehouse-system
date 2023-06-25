@@ -52,14 +52,35 @@ namespace WMSApi.Controllers
         // PUT: api/salesorder/5
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [HttpPut("{id}")]
-        public async Task<IActionResult> PutSalesOrder(long id, SalesOrder salesOrder)
+        public async Task<IActionResult> PutSalesOrder(long id, SalesOrderUpdateDto salesOrderDto)
         {
-            if (id != salesOrder.Id)
+            if (id != salesOrderDto.Id)
             {
                 return BadRequest();
             }
 
-            _context.Entry(salesOrder).State = EntityState.Modified;
+            var salesOrder = await _context.SalesOrders.FindAsync(id);
+            if (salesOrder == null)
+            {
+                return NotFound();
+            }
+
+            switch (salesOrderDto.Status) {
+                case SalesOrderStatus.Filling:
+                    salesOrder.DateFilling = DateTime.Now;
+                    break;
+                case SalesOrderStatus.Staged:
+                    salesOrder.DateStaged = DateTime.Now;
+                    break;
+                case SalesOrderStatus.InTransit:
+                    salesOrder.DateShipped = DateTime.Now;
+                    break;
+                case SalesOrderStatus.Closed:
+                    salesOrder.DateReceived = DateTime.Now;
+                    break;
+            }
+            salesOrder.Status = salesOrderDto.Status;
+            salesOrder.Comments = salesOrderDto.Comments;
 
             try
             {
@@ -83,12 +104,52 @@ namespace WMSApi.Controllers
         // POST: api/salesorder
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [HttpPost]
-        public async Task<ActionResult<SalesOrder>> PostSalesOrder(SalesOrder salesOrder)
+        public async Task<ActionResult<SalesOrder>> PostSalesOrder(SalesOrderCreateDto salesOrderDto)
         {
-          if (_context.SalesOrders == null)
-          {
-              return Problem("Entity set 'ApplicationContext.SalesOrders'  is null.");
-          }
+            if (_context.SalesOrders == null)
+            {
+                return Problem("Entity set 'ApplicationContext.SalesOrders'  is null.");
+            }
+
+            if (salesOrderDto.SalesOrderItems == null || salesOrderDto.SalesOrderItems.Count == 0)
+            {
+                return BadRequest("At least one Sales Order Item is required.");
+            }
+
+            // Create SalesOrder from DTO
+            var salesOrder = new SalesOrder
+            {
+                Status = SalesOrderStatus.Submitted,
+                DateCreated = DateTime.Now,
+                DateLastModified = DateTime.Now,
+                Comments = salesOrderDto.Comments,
+                SalesOrderItems = new List<SalesOrderItem>()
+            };
+
+            // Set ID
+            _context.SalesOrders.Add(salesOrder);
+
+            // Add SalesOrderItems from DTO
+            foreach(var soItemDto in salesOrderDto.SalesOrderItems)
+            {
+                var purchaseOrderItem = await _context.PurchaseOrderItems.FindAsync(soItemDto.PurchaseOrderItemId);
+                if (purchaseOrderItem == null)
+                {
+                    return BadRequest();
+                }
+
+                var soItem = new SalesOrderItem
+                {
+                    PurchaseOrderItem = purchaseOrderItem,
+                    PurchaseOrderItemId = soItemDto.PurchaseOrderItemId,
+                    SalesOrder = salesOrder,
+                    Quantity = soItemDto.Quantity,
+                    UnitPrice = soItemDto.UnitPrice
+                };
+
+                salesOrder.SalesOrderItems.Add(soItem);
+            }
+
             _context.SalesOrders.Add(salesOrder);
             await _context.SaveChangesAsync();
 

@@ -52,14 +52,25 @@ namespace WMSApi.Controllers
         // PUT: api/purchaseorder/5
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [HttpPut("{id}")]
-        public async Task<IActionResult> PutPurchaseOrder(long id, PurchaseOrder purchaseOrder)
+        public async Task<IActionResult> PutPurchaseOrder(long id, PurchaseOrderUpdateDto purchaseOrderDto)
         {
-            if (id != purchaseOrder.Id)
+            if (id != purchaseOrderDto.Id)
             {
                 return BadRequest();
             }
 
-            _context.Entry(purchaseOrder).State = EntityState.Modified;
+            // Find the existing Purchase Order
+            var purchaseOrder = await _context.PurchaseOrders.FindAsync(id);
+            if (purchaseOrder == null)
+            {
+                return NotFound();
+            }
+
+            purchaseOrder.Status = purchaseOrderDto.Status;
+            purchaseOrder.DateEstimatedDelivery = purchaseOrderDto.DateEstimatedDelivery;
+            purchaseOrder.DateReceived = purchaseOrderDto.DateReceived;
+            purchaseOrder.DateLastModified = DateTime.Now;
+            purchaseOrder.Comments = purchaseOrderDto.Comments;
 
             try
             {
@@ -83,13 +94,59 @@ namespace WMSApi.Controllers
         // POST: api/purchaseorder
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [HttpPost]
-        public async Task<ActionResult<PurchaseOrder>> PostPurchaseOrder(PurchaseOrder purchaseOrder)
+        public async Task<ActionResult<PurchaseOrder>> PostPurchaseOrder(PurchaseOrderCreateDto purchaseOrderDto)
         {
-          if (_context.PurchaseOrders == null)
-          {
-              return Problem("Entity set 'ApplicationContext.PurchaseOrders'  is null.");
-          }
+            if (_context.PurchaseOrders == null)
+            {
+                return Problem("Entity set 'ApplicationContext.PurchaseOrders' is null.");
+            }
+
+            if (purchaseOrderDto.PurchaseOrderItems == null || purchaseOrderDto.PurchaseOrderItems.Count == 0)
+            {
+                return BadRequest("At least one Purchase Order Item is required.");
+            }
+
+            // Create PurchaseOrder from DTO
+            var purchaseOrder = new PurchaseOrder
+            {
+                Status = PurchaseOrderStatus.Submitted,
+                DateCreated = DateTime.Now,
+                DateEstimatedDelivery = purchaseOrderDto.DateEstimatedDelivery,
+                DateLastModified = DateTime.Now,
+                Comments = purchaseOrderDto.Comments,
+                PurchaseOrderItems = new List<PurchaseOrderItem>()
+            };
+
+            // Set ID
             _context.PurchaseOrders.Add(purchaseOrder);
+
+            // Add PurchaseOrderItems from DTO
+            foreach(var poItemDto in purchaseOrderDto.PurchaseOrderItems)
+            {
+                var item = await _context.Items.FindAsync(poItemDto.ItemId);
+                if (item == null)
+                {
+                    return BadRequest();
+                }
+
+                var poItem = new PurchaseOrderItem
+                {
+                    ItemId = poItemDto.ItemId,
+                    Item = item,
+                    PurchaseOrder = purchaseOrder,
+                    PurchasedQuantity = poItemDto.PurchasedQuantity,
+                    CurrentQuantity = poItemDto.PurchasedQuantity,
+                    Weight = poItemDto.Weight,
+                    UnitPrice = poItemDto.UnitPrice,
+                    MarkupPrice = poItemDto.MarkupPrice,
+                    MarginPrice = poItemDto.MarginPrice,
+                    FreightPrice = poItemDto.FreightPrice,
+                    SellPrice = poItemDto.UnitPrice + poItemDto.MarkupPrice + poItemDto.MarginPrice + poItemDto.FreightPrice
+                };
+
+                purchaseOrder.PurchaseOrderItems.Add(poItem);
+            }
+
             await _context.SaveChangesAsync();
 
             return CreatedAtAction("GetPurchaseOrder", new { id = purchaseOrder.Id }, purchaseOrder);

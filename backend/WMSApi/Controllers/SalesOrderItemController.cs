@@ -52,14 +52,21 @@ namespace WMSApi.Controllers
         // PUT: api/salesorderitem/5
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [HttpPut("{id}")]
-        public async Task<IActionResult> PutSalesOrderItem(long id, SalesOrderItem salesOrderItem)
+        public async Task<IActionResult> PutSalesOrderItem(long id, SalesOrderItemUpdateDto salesOrderItemDto)
         {
-            if (id != salesOrderItem.Id)
+            if (id != salesOrderItemDto.Id)
             {
                 return BadRequest();
             }
 
-            _context.Entry(salesOrderItem).State = EntityState.Modified;
+            var salesOrderItem = await _context.SalesOrderItems.FindAsync(salesOrderItemDto.Id);
+            if (salesOrderItem == null)
+            {
+                return NotFound();
+            }
+
+            salesOrderItem.Quantity = salesOrderItemDto.Quantity;
+            salesOrderItem.UnitPrice = salesOrderItemDto.UnitPrice;
 
             try
             {
@@ -83,12 +90,35 @@ namespace WMSApi.Controllers
         // POST: api/salesorderitem
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [HttpPost]
-        public async Task<ActionResult<SalesOrderItem>> PostSalesOrderItem(SalesOrderItem salesOrderItem)
+        public async Task<ActionResult<SalesOrderItem>> PostSalesOrderItem(SalesOrderItemCreateDto salesOrderItemDto)
         {
-          if (_context.SalesOrderItems == null)
-          {
-              return Problem("Entity set 'ApplicationContext.SalesOrderItems'  is null.");
-          }
+            if (_context.SalesOrderItems == null)
+            {
+                return Problem("Entity set 'ApplicationContext.SalesOrderItems'  is null.");
+            }
+
+            var purchaseOrderItem = await _context.PurchaseOrderItems.FindAsync(salesOrderItemDto.PurchaseOrderItemId);
+            if (purchaseOrderItem == null)
+            {
+                return BadRequest();
+            }
+
+            var salesOrder = await _context.SalesOrders.FindAsync(salesOrderItemDto.SalesOrderId);
+            if (salesOrder == null)
+            {
+                return BadRequest();
+            }
+
+            var salesOrderItem = new SalesOrderItem
+            {
+                SalesOrder = salesOrder,
+                SalesOrderId = salesOrderItemDto.SalesOrderId,
+                PurchaseOrderItem = purchaseOrderItem,
+                PurchaseOrderItemId = salesOrderItemDto.PurchaseOrderItemId,
+                Quantity = salesOrderItemDto.Quantity,
+                UnitPrice = salesOrderItemDto.UnitPrice
+            };
+
             _context.SalesOrderItems.Add(salesOrderItem);
             await _context.SaveChangesAsync();
 

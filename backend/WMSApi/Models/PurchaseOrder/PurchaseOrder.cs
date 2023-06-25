@@ -17,5 +17,5 @@ public class PurchaseOrder
     public DateTime? DateEstimatedDelivery { get; set; }
     public DateTime? DateReceived { get; set; }
     public DateTime? DateLastModified { get; set; }
-    public string? Comments { get; set;}
+    public string? Comments { get; set; }
 }
