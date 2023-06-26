@@ -20,7 +20,7 @@ namespace WMSApi.Controllers
             _context = context;
         }
 
-        // GET: api/palletBay
+        // GET: api/palletbay
         [HttpGet]
         public async Task<ActionResult<IEnumerable<PalletBay>>> GetPalletBays()
         {
@@ -31,7 +31,7 @@ namespace WMSApi.Controllers
             return await _context.PalletBays.ToListAsync();
         }
 
-        // GET: api/palletBay/5
+        // GET: api/palletbay/5
         [HttpGet("{id}")]
         public async Task<ActionResult<PalletBay>> GetPalletBay(long id)
         {
@@ -49,7 +49,7 @@ namespace WMSApi.Controllers
             return palletBay;
         }
 
-        // PUT: api/palletBay/5
+        // PUT: api/palletbay/5
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [HttpPut("{id}")]
         public async Task<IActionResult> PutPalletBay(long id, PalletBayUpdateDto palletBayDto)
@@ -88,7 +88,7 @@ namespace WMSApi.Controllers
             return NoContent();
         }
 
-        // POST: api/palletBay
+        // POST: api/palletbay
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [HttpPost]
         public async Task<ActionResult<PalletBay>> PostPalletBay(PalletBayCreateDto palletBayDto)
@@ -111,7 +111,46 @@ namespace WMSApi.Controllers
             return CreatedAtAction(nameof(GetPalletBay), new { id = palletBay.Id }, palletBay);
         }
 
-        // DELETE: api/palletBay/5
+        // POST: api/palletbay/bulk
+        [HttpPost("bulk")]
+        public async Task<ActionResult<PalletBay>> PostPalletBayBulk(PalletBayCreateBulkDto palletBayDto)
+        {
+            if (_context.PalletBays == null)
+            {
+                return Problem("Entity set 'ApplicationContext.PalletBays' is null.");
+            }
+
+            if (palletBayDto.Row == null || 
+                palletBayDto.Row == "" || 
+                palletBayDto.StartFloor <= 0 || 
+                palletBayDto.EndFloor < palletBayDto.StartFloor || 
+                palletBayDto.StartSection <= 0 || 
+                palletBayDto.EndSection < palletBayDto.StartSection)
+            {
+                return BadRequest();
+            }
+
+            for(var f = palletBayDto.StartFloor; f <= palletBayDto.EndFloor; f++)
+            {
+                for (var s = palletBayDto.StartSection; s <= palletBayDto.EndSection; s++) 
+                {
+                    // TODO: Update pallet bay model so that sections and floors are numbers, not strings
+                    var palletBay = new PalletBay
+                    {
+                        Row = palletBayDto.Row,
+                        Section = s.ToString(),
+                        Floor = f.ToString()
+                    };
+                    _context.PalletBays.Add(palletBay);
+                }
+            }
+            
+            await _context.SaveChangesAsync();
+
+            return NoContent();
+        }
+
+        // DELETE: api/palletbay/5
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeletePalletBay(long id)
         {

@@ -1,4 +1,4 @@
-﻿namespace WMSApi;
+﻿namespace WMSApi.Models;
 
 public class PalletBayCreateDto
 {

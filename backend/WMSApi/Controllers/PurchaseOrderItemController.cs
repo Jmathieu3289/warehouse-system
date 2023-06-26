@@ -111,49 +111,6 @@ namespace WMSApi.Controllers
             return NoContent();
         }
 
-        // POST: api/purchaseorderitem
-        // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
-        [HttpPost]
-        public async Task<ActionResult<PurchaseOrderItem>> PostPurchaseOrderItem(PurchaseOrderItemCreateDto purchaseOrderItemDto)
-        {
-            if (_context.PurchaseOrderItems == null)
-            {
-                return Problem("Entity set 'ApplicationContext.PurchaseOrderItems' is null.");
-            }
-
-            var item = await _context.Items.FindAsync(purchaseOrderItemDto.ItemId);
-            if (item == null)
-            {
-                return BadRequest();
-            }
-
-            var purchaseOrder = await _context.PurchaseOrders.FindAsync(purchaseOrderItemDto.PurchaseOrderId);
-            if (purchaseOrder == null)
-            {
-                return BadRequest();
-            }
-
-            var purchaseOrderItem = new PurchaseOrderItem
-            {
-                ItemId = purchaseOrderItemDto.ItemId,
-                Item = item,
-                PurchaseOrderId = purchaseOrderItemDto.PurchaseOrderId,
-                PurchaseOrder = purchaseOrder,
-                PurchasedQuantity = purchaseOrderItemDto.PurchasedQuantity,
-                Weight = purchaseOrderItemDto.Weight,
-                UnitPrice = purchaseOrderItemDto.UnitPrice,
-                MarkupPrice = purchaseOrderItemDto.MarkupPrice,
-                MarginPrice = purchaseOrderItemDto.MarginPrice,
-                FreightPrice = purchaseOrderItemDto.FreightPrice,
-                SellPrice = purchaseOrderItemDto.UnitPrice + purchaseOrderItemDto.MarginPrice + purchaseOrderItemDto.MarginPrice + purchaseOrderItemDto.FreightPrice
-            };
-
-            _context.PurchaseOrderItems.Add(purchaseOrderItem);
-            await _context.SaveChangesAsync();
-
-            return CreatedAtAction(nameof(GetPurchaseOrderItem), new { id = purchaseOrderItem.Id }, purchaseOrderItem);
-        }
-
         // DELETE: api/purchaseorderitem/5
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeletePurchaseOrderItem(long id)
