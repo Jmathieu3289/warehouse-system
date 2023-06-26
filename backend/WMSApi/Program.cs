@@ -1,11 +1,14 @@
 using System.Configuration;
+using System.Text.Json.Serialization;
 using Microsoft.EntityFrameworkCore;
 using WMSApi.Models;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
-builder.Services.AddControllers();
+builder.Services.AddControllers().AddJsonOptions(options => {
+    options.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles;
+});
 
 // Add contexts to the container.
 var configuration = builder.Configuration;

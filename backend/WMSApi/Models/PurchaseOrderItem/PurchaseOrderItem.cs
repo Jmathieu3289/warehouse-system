@@ -7,7 +7,7 @@ public class PurchaseOrderItem
     public required Item Item { get; set; }
     public long PurchaseOrderId { get; set; }
     public required PurchaseOrder PurchaseOrder { get; set; }
-    public long PalletId { get; set; }
+    public long? PalletId { get; set; }
     public Pallet? Pallet { get; set; }
     public required double PurchasedQuantity { get; set; }
     public double CurrentQuantity { get; set; }

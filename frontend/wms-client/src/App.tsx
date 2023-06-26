@@ -2,7 +2,7 @@ import { Routes, Route, Outlet, Link } from "react-router-dom";
 import './App.css';
 import { Navbar, Container, Nav, Button, Form, Modal, Table, Row } from "react-bootstrap";
 import { LinkContainer } from "react-router-bootstrap";
-import React, { useEffect, useState } from "react";
+import React, { Fragment, useEffect, useState } from "react";
 
 function App() {
   return (
@@ -277,7 +277,6 @@ function Items() {
     });
     let data = await res.json();
     setItems(data);
-    sortItems('upc');
     setLoading(false);
   }
 
@@ -442,7 +441,7 @@ function PurchaseOrders() {
     id?: number;
     status?: PurchaseOrderStatus;
     purchaseOrderItems: PurchaseOrderItem[];
-    dateCreated?: Date;
+    dateCreated?: string;
     dateEstimatedDelivery?: string;
     dateReceived?: string;
     dateLastModified?: string;
@@ -458,7 +457,10 @@ function PurchaseOrders() {
     id?: number,
     itemId: number,
     item?: Item,
+    purchaseOrderId?: number,
+    purchaseOrder?: PurchaseOrder,
     palletId?: number,
+    pallet?: any,
     purchasedQuantity: number,
     currentQuantity?: number,
     weight?: number,
@@ -469,10 +471,23 @@ function PurchaseOrders() {
     sellPrice?: number
   }
 
+  interface PurchaseOrderPutawayItem {
+    id: number,
+    purchasedQuantity: number,
+    unitPrice: number,
+    markupPrice: number,
+    name: string,
+    row: string,
+    section: number,
+    floor: number
+  }
+
   interface Item {
     id: number,
     name: string,
-    upc: string
+    upc: string,
+    dateCreated?: string,
+    dateLastModified?: string
   }
 
   const [show, setShow] = useState(false);
@@ -484,8 +499,31 @@ function PurchaseOrders() {
   const [items, setItems] = useState<Item[]>([]);
   const [query, setQuery] = useState('');
 
+  const [receiveShow, setReceiveShow] = useState(false);
+  const [purchaseOrderPutawayItems, setPurchaseOrderPutawayItems] = useState<PurchaseOrderPutawayItem[]>([]);
+  const [currentPurchaseOrder, setCurrentPurchaseOrder] = useState<PurchaseOrder>();
+
   const handleClose = () => setShow(false);
   const handleShow = () => setShow(true);
+
+  const handleReceiveClose = () => setReceiveShow(false);
+  const handleReceiveShow = (purchaseOrder: PurchaseOrder) => {
+    setCurrentPurchaseOrder(purchaseOrder);
+    setPurchaseOrderPutawayItems(purchaseOrder.purchaseOrderItems.map(poi => {
+      return {
+        id: (poi.id || 0),
+        purchasedQuantity: poi.purchasedQuantity,
+        unitPrice: poi.unitPrice,
+        markupPrice: poi.markupPrice,
+        name: (poi.item?.name || ''),
+        row: '',
+        section: 1,
+        floor: 1
+      }
+    }));
+    setReceiveShow(true);
+  }
+
 
   const fetchPurchaseOrders = async () => {
     setLoading(true);
@@ -494,7 +532,6 @@ function PurchaseOrders() {
     });
     let data = await res.json();
     setPurchaseOrders(data);
-    sortData('status');
     setLoading(false);
   }
 
@@ -506,10 +543,6 @@ function PurchaseOrders() {
     let data = await res.json();
     setItems(data);
     setLoading(false);
-  }
-
-  const sortData = (field: string) => {
-    setPurchaseOrders([...purchaseOrders].sort((a: any, b: any) => { return a[field] < b[field] ? -1 : a[field] === b[field] ? 0 : 1}));
   }
 
   useEffect(() => {
@@ -532,6 +565,12 @@ function PurchaseOrders() {
 
   const updatePOIProperty = (itemToUpdate: PurchaseOrderItem, property: string, newValue: any) => {
     setPurchaseOrderItems(prevItems => prevItems.map(item => 
+      item === itemToUpdate  ? {...item, [property]: newValue} : item
+    ))
+  }
+
+  const updatePOIPutawayProperty = (itemToUpdate: PurchaseOrderPutawayItem, property: string, newValue: any) => {
+    setPurchaseOrderPutawayItems(prevItems => prevItems.map(item => 
       item === itemToUpdate  ? {...item, [property]: newValue} : item
     ))
   }
@@ -583,7 +622,7 @@ function PurchaseOrders() {
     setShow(false);
   };
 
-  const deletePurchaseOrder = async (id: string) => {
+  const deletePurchaseOrder = async (id: number | undefined) => {
     if (id) {
       try {
         let res = await fetch(`/api/purchaseorder/${id}`, {
@@ -593,7 +632,7 @@ function PurchaseOrders() {
           }
         });
   
-        if (res.status === 204) {
+        if (res.status >= 200 && res.status < 300) {
           fetchPurchaseOrders();
         } else {
           //failure
@@ -602,6 +641,89 @@ function PurchaseOrders() {
         console.log(err);
       }
     }
+  }
+
+  const finishReceiveOrder = async(e: React.SyntheticEvent) => {
+
+    e.preventDefault();
+
+    // TODO: Implement logic in backend and add interfaces
+
+    let palletBays = await (await fetch('/api/palletbay', {
+      method: 'GET'
+    })).json();
+
+    console.log(palletBays);
+ 
+    purchaseOrderPutawayItems.forEach(async poi => {
+
+      console.log(poi);
+
+      // Get bay
+      let bay = palletBays.find((b: any) => {
+        return b.row == poi.row && 
+               b.section == poi.section &&
+               b.floor == poi.floor;
+      });
+
+      console.log(bay);
+
+      if (bay) {
+        let pallet = {
+          palletBayId: bay.id
+        }
+
+        let savedPallet = await (await fetch(`/api/pallet`, {
+          method: 'POST',
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(pallet)
+        })).json();
+
+        console.log(savedPallet);
+
+        await fetch(`/api/purchaseorderitem/${poi.id}`, {
+          method: 'PUT',
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            id: poi.id,
+            palletId: savedPallet.id,
+            purchasedQuantity: poi.purchasedQuantity,
+            unitPrice: poi.unitPrice,
+            markupPrice: poi.markupPrice
+          })
+        })
+      } else {
+        return;
+      }
+    });
+
+    if (currentPurchaseOrder)
+    {
+      await fetch(`/api/purchaseorder/${currentPurchaseOrder.id}`, {
+        method: 'PUT',
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          id: currentPurchaseOrder.id,
+          status: PurchaseOrderStatus.Received,
+          dateReceived: new Date().toISOString()
+        })
+      });
+
+      setPurchaseOrderItems([]);
+      setPurchaseOrderPutawayItems([]);
+      fetchPurchaseOrders();
+    }
+  
+  }
+
+  const getStatusName = (status: PurchaseOrderStatus | undefined) => {
+    return PurchaseOrderStatus[status || 0];
   }
 
   return (
@@ -625,27 +747,66 @@ function PurchaseOrders() {
               <Table size="sm" className="w-100" striped bordered>
                 <thead>
                   <tr>
-                    <th className="col-3"><Button variant="link" className="px-1 py-0" onClick={() => {sortData('name')}}>Name</Button></th>
-                    <th className="col-1"><Button variant="link" className="px-1 py-0" onClick={() => {sortData('upc')}}>UPC</Button></th>
+                    <th className="col-1">Status</th>
                     <th className="col-1">Created</th>
+                    <th className="col-1">Received</th>
                     <th className="col-1">Last Modified</th>
                     <th className="col-1"></th>
                   </tr>
                 </thead>
                 <tbody>
                   {
-                    purchaseOrders.map((po: any) => {
+                    purchaseOrders.map((po: PurchaseOrder) => {
                       return (
-                        <tr key={po.id}>
-                          <td>{po.name}</td>
-                          <td>{po.upc}</td>
-                          <td>{new Date(po.dateCreated).toLocaleDateString() + ' ' + new Date(po.dateCreated).toLocaleTimeString()}</td>
-                          <td>{new Date(po.dateLastModified).toLocaleDateString() + ' ' + new Date(po.dateLastModified).toLocaleTimeString()}</td>
-                          <td className="text-center">
-                            <Button variant="secondary" size="sm" className="me-2">Edit</Button>
-                            <Button variant="danger" size="sm" onClick={async () => {await deletePurchaseOrder(po.id)}}>Remove</Button>
-                          </td>
-                        </tr>
+                        <Fragment>
+                          <tr key={po.id}>
+                            <td>{getStatusName(po.status)}</td>
+                            <td>{new Date(po.dateCreated || Date.now()).toLocaleDateString()}</td>
+                            <td>{po.dateReceived ? new Date(po.dateReceived).toLocaleDateString() : ''}</td>
+                            <td>{new Date(po.dateLastModified || Date.now()).toLocaleDateString()}</td>
+                            <td className="text-center">
+                              {po.status === 0 && 
+                                <Button variant="secondary" size="sm" className="me-2" onClick={() => { handleReceiveShow(po) }}>Receive</Button>
+                              }
+                              <Button variant="danger" size="sm" onClick={async () => {await deletePurchaseOrder(po.id)}}>Remove</Button>
+                            </td>
+                          </tr>
+                          <tr key={po.id + '-items'}>
+                            <td colSpan={4}>
+                              <div className="p-2">
+                                Purchase Items
+                                <Table size="sm" className="w-100" striped bordered>
+                                  <thead>
+                                    <tr>
+                                      <th>Item</th>
+                                      <th>Order Quantity</th>
+                                      <th>Current Quantity</th>
+                                      <th>Unit Price</th>
+                                      <th>Markup</th>
+                                      <th>Sell Price</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {
+                                      po.purchaseOrderItems.map((poi: PurchaseOrderItem) => {
+                                        return (
+                                          <tr key={poi.id}>
+                                            <td>{poi.item?.name}</td>
+                                            <td>{poi.purchasedQuantity}</td>
+                                            <td>{poi.currentQuantity}</td>
+                                            <td>{poi.unitPrice}</td>
+                                            <td>{poi.markupPrice}</td>
+                                            <td>{poi.sellPrice}</td>
+                                          </tr>
+                                        )
+                                      })
+                                    }
+                                  </tbody>
+                                </Table>
+                              </div>
+                            </td>
+                          </tr> 
+                        </Fragment>            
                       )
                     })
                   }
@@ -726,6 +887,48 @@ function PurchaseOrders() {
             <div className="d-flex flex-row justify-content-end w-100">
               <Button variant="secondary" type="button" className="me-2" tabIndex={-1} onClick={handleClose}>Close</Button>
               <Button variant="success" type="submit">Save Purchase Order</Button>
+            </div>
+          </Form>
+        </Modal.Body>
+      </Modal>
+      <Modal show={receiveShow} onHide={handleReceiveClose} animation={false} backdrop="static" size="lg" centered>
+        <Modal.Header closeButton>
+          <Modal.Title>Receive Purchase Order</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <Form className="d-flex flex-column align-items-center" onSubmit={finishReceiveOrder} autoComplete="off">
+            <div className="w-100 text-left mb-2">
+              Order Items
+              <Table bordered size="sm">
+                <thead>
+                  <tr>
+                    <th className="col-5">Item</th>
+                    <th className="col-1">Row</th>
+                    <th className="col-1">Section</th>
+                    <th className="col-1">Floor</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {
+                    purchaseOrderPutawayItems.map(poi => {
+                      return (
+                        <tr key={purchaseOrderPutawayItems.indexOf(poi)}>
+                          <td className="align-middle">{poi.name}</td>
+                          <td><Form.Control name="row" className="bg-dark-subtle" value={poi.row} onChange={e => updatePOIPutawayProperty(poi, 'row', e.target.value)}></Form.Control></td>
+                          <td><Form.Control name="section" type="number" step="1" className="bg-dark-subtle" value={poi.section} onChange={e => updatePOIPutawayProperty(poi, 'section', parseFloat(e.target.value) || 0)}></Form.Control></td>
+                          <td><Form.Control name="floor" type="number" step="1" className="bg-dark-subtle" value={poi.floor} onChange={e => updatePOIPutawayProperty(poi, 'floor', parseFloat(e.target.value) || 0)}></Form.Control></td>
+                        </tr>
+                      )
+                    })
+                  }
+                  
+                </tbody>
+              </Table>
+            </div>
+            <hr className="w-100"></hr>
+            <div className="d-flex flex-row justify-content-end w-100">
+              <Button variant="secondary" type="button" className="me-2" tabIndex={-1} onClick={handleReceiveClose}>Close</Button>
+              <Button variant="success" type="submit">Finish Receiving</Button>
             </div>
           </Form>
         </Modal.Body>

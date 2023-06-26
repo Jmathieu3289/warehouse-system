@@ -28,7 +28,10 @@ namespace WMSApi.Controllers
           {
               return NotFound();
           }
-            return await _context.PurchaseOrders.ToListAsync();
+            return await _context.PurchaseOrders
+                            .Include(po => po.PurchaseOrderItems)
+                            .ThenInclude(poi => poi.Item)
+                            .ToListAsync();
         }
 
         // GET: api/purchaseorder/5
