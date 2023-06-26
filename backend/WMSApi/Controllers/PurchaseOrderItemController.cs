@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Drawing;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
@@ -29,6 +30,36 @@ namespace WMSApi.Controllers
               return NotFound();
           }
             return await _context.PurchaseOrderItems.ToListAsync();
+        }
+
+        // GET: api/purchaseorderitem/saleable
+        [HttpGet("/api/purchaseorderitem/saleable")]
+        public async Task<ActionResult<IEnumerable<PurchaseItemDto>>> GetSaleablePurchaseOrderItems()
+        {
+          if (_context.PurchaseOrderItems == null)
+          {
+              return NotFound();
+          }
+            var purchaseOrderItems = await _context.PurchaseOrderItems
+            .Include(poi => poi.PurchaseOrder)   
+            .Include(poi => poi.Item)
+            .Where(poi => poi.PurchaseOrder.Status == PurchaseOrderStatus.Received)
+            .ToListAsync();
+
+            var purchaseItems = new List<PurchaseItemDto>();
+
+            for (var i = 0; i < purchaseOrderItems.Count; i++) {
+                var puchaseItem = new PurchaseItemDto
+                {
+                    PurchaseOrderItemId = purchaseOrderItems[i].Id,
+                    Name = purchaseOrderItems[i].Item.Name,
+                    Quantity = purchaseOrderItems[i].CurrentQuantity,
+                    UnitPrice = purchaseOrderItems[i].SellPrice
+                };
+                purchaseItems.Add(puchaseItem);
+            }
+
+            return purchaseItems;
         }
 
         // GET: api//purchaseorderitem/5

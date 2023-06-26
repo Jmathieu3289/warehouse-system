@@ -536,13 +536,11 @@ function PurchaseOrders() {
   }
 
   const fetchItems = async () => {
-    setLoading(true);
     let res = await fetch('/api/item', {
       method: 'GET'
     });
     let data = await res.json();
     setItems(data);
-    setLoading(false);
   }
 
   useEffect(() => {
@@ -579,8 +577,6 @@ function PurchaseOrders() {
     e.preventDefault();
 
     const po = e.target as typeof e.target & PurchaseOrderForm;
-
-    console.log(po.comments.value);
 
     if (po && purchaseOrderItems && purchaseOrderItems.length > 0) {
 
@@ -657,16 +653,12 @@ function PurchaseOrders() {
  
     purchaseOrderPutawayItems.forEach(async poi => {
 
-      console.log(poi);
-
       // Get bay
       let bay = palletBays.find((b: any) => {
         return b.row == poi.row && 
                b.section == poi.section &&
                b.floor == poi.floor;
       });
-
-      console.log(bay);
 
       if (bay) {
         let pallet = {
@@ -680,8 +672,6 @@ function PurchaseOrders() {
           },
           body: JSON.stringify(pallet)
         })).json();
-
-        console.log(savedPallet);
 
         await fetch(`/api/purchaseorderitem/${poi.id}`, {
           method: 'PUT',
@@ -939,14 +929,81 @@ function PurchaseOrders() {
 
 function SalesOrders() {
 
+  interface SalesOrder {
+
+  }
+
+  interface SalesOrderItem {
+    id?: number,
+    salesOrderId?: number,
+    purchaseOrderItemId?: number,
+    name?: string,
+    quantity: number,
+    unitPrice: number
+  }
+
+  interface PurchaseItem {
+    purchaseOrderItemId?: number,
+    name: string,
+    quantity: number,
+    unitPrice: number
+  }
+
   const [show, setShow] = useState(false);
 
   const handleClose = () => setShow(false);
   const handleShow = () => setShow(true);
 
+  const [salesOrders, setSalesOrders] = useState<SalesOrder[]>([]);
+
+  const [salesOrderItems, setSalesOrderItems] = useState<SalesOrderItem[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  const [query, setQuery] = useState('');
+  const [items, setItems] = useState<PurchaseItem[]>([]);
+
+  const fetchSalesOrders = async () => {
+    setLoading(true);
+    let res = await fetch('/api/salesorder', {
+      method: 'GET'
+    });
+    let data = await res.json();
+    setSalesOrders(data);
+    setLoading(false);
+  }
+
+  const fetchPurchaseItems = async () => {
+    let res = await fetch('/api/purchaseorderitem/saleable', {
+      method: 'GET'
+    });
+    let data = await res.json();
+    setItems(data);
+  }
+
+  useEffect(() => {
+    fetchSalesOrders();
+    fetchPurchaseItems();
+  }, []);
+
   const handleSave = () => {
     setShow(false);
   };
+
+  const addSalesOrderItem = (item: PurchaseItem) => {
+    setSalesOrderItems([...salesOrderItems, {
+      purchaseOrderItemId: item.purchaseOrderItemId,
+      name: item.name,
+      quantity: 1,
+      unitPrice: item.unitPrice
+    }]);
+    setQuery('');
+  }
+
+  const updateSOIProperty = (itemToUpdate: SalesOrderItem, property: string, newValue: any) => {
+    setSalesOrderItems(prevItems => prevItems.map(item => 
+      item === itemToUpdate  ? {...item, [property]: newValue} : item
+    ))
+  }
 
   return (
     <Container>
@@ -979,34 +1036,61 @@ function SalesOrders() {
               <Table bordered size="sm">
                 <thead>
                   <tr>
-                    <th className="col-6">Item</th>
+                    <th className="col-5">Item</th>
                     <th className="col-1">Qty</th>
-                    <th className="text-end">Unit Price</th>
-                    <th className="text-end">Total</th>
+                    <th className="col-2 text-end">Unit Price</th>
+                    <th className="col-2 text-end">Total</th>
                     <th></th>
                   </tr>
                 </thead>
                 <tbody>
-                  <tr>
-                    <td className="align-middle">Small Widget</td>
-                    <td><Form.Control type="number" className="bg-dark-subtle" value="30"></Form.Control></td>
-                    <td className="align-middle fs-5 text-end">$9.95</td>
-                    <td className="align-middle fs-5 text-end">$298.50</td>
-                    <td><Button variant="danger" size="sm" className="w-100 mt-1">Remove</Button></td>
-                  </tr>
+                  {
+                    salesOrderItems.map(soi => {
+                      return (
+                        <tr key={salesOrderItems.indexOf(soi)}>
+                          <td className="align-middle">{soi.name}</td>
+                          <td><Form.Control type="number" className="bg-dark-subtle" value={soi.quantity} onChange={e => updateSOIProperty(soi, 'quantity', parseInt(e.target.value) || 0)}></Form.Control></td>
+                          <td className="align-middle fs-5 text-end">${soi.unitPrice.toFixed(2)}</td>
+                          <td className="align-middle fs-5 text-end">${(soi.unitPrice * soi.quantity).toFixed(2)}</td>
+                          <td><Button variant="danger" size="sm" className="w-100 mt-1">Remove</Button></td>
+                        </tr>
+                      )
+                    })
+                  }    
+                  <tr key="total-row">
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td>
+                      {
+                        <div className="text-end fs-5 fw-bold">
+                          {
+                            '$' + salesOrderItems.reduce((acc, item) => {
+                              return acc + (item.quantity * item.unitPrice)
+                            }, 0).toFixed(2)
+                          }
+                        </div> 
+                      }
+                    </td>
+                    <td></td>
+                  </tr>    
                 </tbody>
               </Table>
               Search
-              <div className="d-flex flex-row align-items-center">
-                <Form.Control type="text" autoFocus className="bg-dark-subtle me-2 flex-grow-1"></Form.Control>
-                <Button variant="primary text-nowrap px-4">Add Item</Button>
+              <Form.Control type="text" autoFocus className="bg-dark-subtle me-2 flex-grow-1" value={query} onChange={e => setQuery(e.target.value)}></Form.Control>
+              <div className="mt-2 border rounded p-2">
+                { query.length > 2 &&
+                  items
+                  .filter(item => {
+                    return item.name.toUpperCase().includes(query.toUpperCase())
+                  })
+                  .map(item => { 
+                    return <div key={item.purchaseOrderItemId}><Button variant="link" size="sm" onClick={() => addSalesOrderItem(item)}>{item.name + ' | $' + item.unitPrice + ' | ' + item.quantity + ' available'}</Button></div>
+                  })
+                }
               </div>
             </div>
             <hr className="w-100"></hr>
-            <Form.Group className="mb-3 w-100" controlId="formDeliveryDate">
-              <Form.Label>Estimated Delivery Date</Form.Label>
-              <Form.Control type="date" className="w-auto bg-dark-subtle" />
-            </Form.Group>
             <Form.Group className="mb-3 w-100" controlId="formComments">
               <Form.Label>Comments</Form.Label>
               <Form.Control as="textarea" rows={3} className="bg-dark-subtle" />
