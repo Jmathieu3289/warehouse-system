@@ -28,7 +28,58 @@ namespace WMSApi.Controllers
           {
               return NotFound();
           }
-            return await _context.PalletBays.ToListAsync();
+            return await _context.PalletBays
+            .Include(palletBay => palletBay.Pallets)
+            .ThenInclude(pallet => pallet.PurchaseOrderItems)
+            .ThenInclude(poi => poi.Item)
+            .ToListAsync();
+        }
+
+        // GET: api/palletbay/contents
+        [HttpGet("/api/palletbay/contents/{id}")]
+        public async Task<ActionResult<IEnumerable<PalletBayContentsDto>>> GetPalletBayContents(long id)
+        {
+            if (_context.PalletBays == null)
+            {
+                return NotFound();
+            }
+
+            var palletBay = await _context.PalletBays
+                            .Include(pb => pb.Pallets)
+                                .ThenInclude(p => p.PurchaseOrderItems)
+                                .ThenInclude(poi => poi.Item)
+                            .FirstOrDefaultAsync(pb => pb.Id == id);
+
+            if (palletBay == null) 
+            {
+                return NotFound();
+            }
+
+            var contents = new List<PalletBayContentsDto>();
+
+            // Using LINQ
+            var filteredContents = from p in palletBay.Pallets
+                                   where p.PurchaseOrderItems.Count > 0
+                                   where p.PurchaseOrderItems.First().CurrentQuantity > 0
+                                   select p;
+
+            // Using LINQ in a different way
+            var otherFilteredContents = palletBay.Pallets.Where(p => p.PurchaseOrderItems.Count > 0 && p.PurchaseOrderItems.First().CurrentQuantity > 0)
+                                                         .Select(p => p);
+
+            foreach (var pallet in filteredContents) 
+            {
+                var content = new PalletBayContentsDto 
+                {
+                    Name = pallet.PurchaseOrderItems.First().Item.Name,
+                    PalletId = pallet.Id,
+                    PalletBayId = palletBay.Id,
+                    Quantity = pallet.PurchaseOrderItems.First().CurrentQuantity
+                };
+                contents.Add(content);
+            }
+
+            return contents;
         }
 
         // GET: api/palletbay/5
@@ -102,7 +153,8 @@ namespace WMSApi.Controllers
             {
                 Row = palletBayDto.Row,
                 Section = palletBayDto.Section,
-                Floor = palletBayDto.Floor
+                Floor = palletBayDto.Floor,
+                Pallets = new List<Pallet>()
             };
 
             _context.PalletBays.Add(palletBay);
@@ -139,7 +191,8 @@ namespace WMSApi.Controllers
                     {
                         Row = palletBayDto.Row,
                         Section = s.ToString(),
-                        Floor = f.ToString()
+                        Floor = f.ToString(),
+                        Pallets = new List<Pallet>()
                     };
                     _context.PalletBays.Add(palletBay);
                 }

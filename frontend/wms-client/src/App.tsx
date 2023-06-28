@@ -3,6 +3,7 @@ import './App.css';
 import { Navbar, Container, Nav, Button, Form, Modal, Table, Row } from "react-bootstrap";
 import { LinkContainer } from "react-router-bootstrap";
 import React, { Fragment, useEffect, useState } from "react";
+import Swal from 'sweetalert2';
 
 function App() {
   return (
@@ -91,8 +92,24 @@ function Home() {
 
 function Warehouse() {
 
+  interface Contents {
+    palletId: number;
+    palletBayId: number;
+    name: string;
+    quantity: number;
+  }
+
+  interface PalletBay {
+    id: number;
+    row: string;
+    section: string;
+    floor: string;
+    contents: Contents[];
+    pallets: any[];
+  }
+
   const [show, setShow] = useState(false);
-  const [palletBays, setPalletBays] = useState([]);
+  const [palletBays, setPalletBays] = useState<PalletBay[]>([]);
   const [loading, setLoading] = useState(true);
 
   const handleClose = () => setShow(false);
@@ -103,7 +120,7 @@ function Warehouse() {
     let res = await fetch('/api/palletbay', {
       method: 'GET'
     });
-    let data = await res.json();
+    let data = await res.json() as PalletBay[];
     setPalletBays(data);
     setLoading(false);
   }
@@ -188,13 +205,17 @@ function Warehouse() {
                     </thead>
                     <tbody>
                       {
-                        palletBays.map((bay: any) => {
+                        palletBays.map((bay: PalletBay) => {
                           return (
                             <tr key={bay.id}>
                               <td>{bay.row}</td>
                               <td>{bay.section}</td>
                               <td>{bay.floor}</td>
-                              <td>{bay.pallets || ''}</td>
+                              <td>{bay.pallets.filter(pallet => pallet.purchaseOrderItems.length > 0).map((pallet: any) => { 
+                                return <div>{pallet.purchaseOrderItems.map((poi: any) => {
+                                  return <div>{poi.currentQuantity + ' ' + poi.item.name}</div>
+                                })}</div>
+                              })}</td>
                               <td className="text-center"><Button variant="danger" size="sm" className="w-100">Remove</Button></td>
                             </tr>
                           )
@@ -277,6 +298,7 @@ function Items() {
     });
     let data = await res.json();
     setItems(data);
+    sortItems('upc');
     setLoading(false);
   }
 
@@ -322,6 +344,14 @@ function Items() {
       }
     }
 
+    Swal.fire({
+      title: 'Item Created',
+      icon: 'success',
+      toast: true,
+      position: 'center',
+      showConfirmButton: false,
+      timer: 2000
+    });
     setShow(false);
   };
 
@@ -605,7 +635,7 @@ function PurchaseOrders() {
           body: JSON.stringify(data)
         });
   
-        if (res.status === 200) {
+        if (res.status >= 200 && res.status < 300) {
           fetchPurchaseOrders();
         } else {
           //failure
@@ -615,6 +645,14 @@ function PurchaseOrders() {
       }
     }
 
+    Swal.fire({
+      title: 'Order Created',
+      icon: 'success',
+      toast: true,
+      position: 'center',
+      showConfirmButton: false,
+      timer: 2000
+    });
     setShow(false);
   };
 
@@ -707,6 +745,15 @@ function PurchaseOrders() {
 
       setPurchaseOrderItems([]);
       setPurchaseOrderPutawayItems([]);
+      handleReceiveClose();
+      Swal.fire({
+        title: 'Order Received',
+        icon: 'success',
+        toast: true,
+        position: 'center',
+        showConfirmButton: false,
+        timer: 2000
+      });
       fetchPurchaseOrders();
     }
   
@@ -786,7 +833,7 @@ function PurchaseOrders() {
                                             <td>{poi.currentQuantity}</td>
                                             <td>{poi.unitPrice}</td>
                                             <td>{poi.markupPrice}</td>
-                                            <td>{poi.sellPrice}</td>
+                                            <td>{poi.sellPrice?.toFixed(2)}</td>
                                           </tr>
                                         )
                                       })

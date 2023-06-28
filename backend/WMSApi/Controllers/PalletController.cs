@@ -117,7 +117,8 @@ namespace WMSApi.Controllers
             var pallet = new Pallet 
             {
                 PalletBayId = palletDto.PalletBayId,
-                PalletBay = palletBay
+                PalletBay = palletBay,
+                PurchaseOrderItems = new List<PurchaseOrderItem>()
             };
 
             _context.Pallets.Add(pallet);
