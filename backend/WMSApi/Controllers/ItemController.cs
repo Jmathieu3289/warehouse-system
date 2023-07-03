@@ -1,11 +1,7 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using WMSApi.Models;
+using WMSApi.Services;
 
 namespace WMSApi.Controllers
 {
@@ -13,40 +9,35 @@ namespace WMSApi.Controllers
     [ApiController]
     public class ItemController : ControllerBase
     {
-        private readonly ApplicationContext _context;
+        private readonly IItemService _service;
 
-        public ItemController(ApplicationContext context)
+        public ItemController(IItemService service)
         {
-            _context = context;
+            _service = service;
         }
 
         // GET: api/item
         [HttpGet]
         public async Task<ActionResult<IEnumerable<Item>>> GetItems()
         {
-          if (_context.Items == null)
-          {
-              return NotFound();
-          }
-            return await _context.Items.ToListAsync();
+            var items = await _service.GetItems();
+            if (items == null)
+            {
+                return NotFound();
+            }
+            return Ok(items);
         }
 
         // GET: api/item/5
         [HttpGet("{id}")]
         public async Task<ActionResult<Item>> GetItem(long id)
         {
-          if (_context.Items == null)
-          {
-              return NotFound();
-          }
-            var item = await _context.Items.FindAsync(id);
-
+            var item = await _service.GetItemById(id);
             if (item == null)
             {
                 return NotFound();
             }
-
-            return item;
+            return Ok(item);
         }
 
         // PUT: api/item/5
@@ -59,23 +50,18 @@ namespace WMSApi.Controllers
                 return BadRequest();
             }
 
-            var item = await _context.Items.FindAsync(id);
-            if (item == null)
+            try 
             {
-                return NotFound();
-            }
-
-            item.Name = itemDto.Name;
-            item.UPC = itemDto.UPC;
-            item.DateLastModified = DateTime.Now;
-
-            try
-            {
-                await _context.SaveChangesAsync();
+                var item = await _service.UpdateItem(id, itemDto);
+                if (item == null)
+                {
+                    return NotFound();
+                }
+                return NoContent();
             }
             catch (DbUpdateConcurrencyException)
             {
-                if (!ItemExists(id))
+                if (!_service.ItemExists(id))
                 {
                     return NotFound();
                 }
@@ -84,31 +70,18 @@ namespace WMSApi.Controllers
                     throw;
                 }
             }
-
-            return NoContent();
         }
 
         // POST: api/item
         // To protect from overiteming attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [HttpPost]
-        public async Task<ActionResult<Item>> PostItem(ItemCreateDto itemDTO)
+        public async Task<ActionResult<Item>> PostItem(ItemCreateDto itemDto)
         {
-          if (_context.Items == null)
-          {
-              return Problem("Entity set 'ApplicationContext.Items' is null.");
-          }
-
-            var item = new Item
+            var item = await _service.CreateItem(itemDto);
+            if (item == null)
             {
-                Name = itemDTO.Name,
-                UPC = itemDTO.UPC,
-                DateCreated = DateTime.Now,
-                DateLastModified = DateTime.Now
-            };
-
-            _context.Items.Add(item);
-            await _context.SaveChangesAsync();
-
+                return BadRequest();
+            }
             return CreatedAtAction(nameof(GetItem), new { id = item.Id }, item);
         }
 
@@ -116,25 +89,12 @@ namespace WMSApi.Controllers
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteItem(long id)
         {
-            if (_context.Items == null)
-            {
-                return NotFound();
-            }
-            var item = await _context.Items.FindAsync(id);
+            var item = await _service.DeleteItem(id);
             if (item == null)
             {
                 return NotFound();
             }
-
-            _context.Items.Remove(item);
-            await _context.SaveChangesAsync();
-
             return NoContent();
-        }
-
-        private bool ItemExists(long id)
-        {
-            return (_context.Items?.Any(e => e.Id == id)).GetValueOrDefault();
         }
     }
 }

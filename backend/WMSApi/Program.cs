@@ -2,6 +2,7 @@ using System.Configuration;
 using System.Text.Json.Serialization;
 using Microsoft.EntityFrameworkCore;
 using WMSApi.Models;
+using WMSApi.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -13,6 +14,8 @@ builder.Services.AddControllers().AddJsonOptions(options => {
 // Add contexts to the container.
 var configuration = builder.Configuration;
 builder.Services.AddDbContext<ApplicationContext>(opt => opt.UseSqlServer(configuration.GetConnectionString("DefaultConnection")));
+
+builder.Services.AddScoped<IItemService, ItemService>();
 
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();

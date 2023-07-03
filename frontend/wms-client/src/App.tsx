@@ -298,7 +298,6 @@ function Items() {
     });
     let data = await res.json();
     setItems(data);
-    sortItems('upc');
     setLoading(false);
   }
 
@@ -308,6 +307,7 @@ function Items() {
 
   useEffect(() => {
     fetchItems();
+    sortItems('upc');
   }, []);
 
   const handleSave = async (e: React.SyntheticEvent) => {
