@@ -16,6 +16,12 @@ var configuration = builder.Configuration;
 builder.Services.AddDbContext<ApplicationContext>(opt => opt.UseSqlServer(configuration.GetConnectionString("DefaultConnection")));
 
 builder.Services.AddScoped<IItemService, ItemService>();
+builder.Services.AddScoped<IPalletService, PalletService>();
+builder.Services.AddScoped<IPalletBayService, PalletBayService>();
+builder.Services.AddScoped<IPurchaseOrderService, PurchaseOrderService>();
+builder.Services.AddScoped<IPurchaseOrderItemService, PurchaseOrderItemService>();
+builder.Services.AddScoped<ISalesOrderService, SalesOrderService>();
+builder.Services.AddScoped<ISalesOrderItemService, SalesOrderItemService>();
 
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();

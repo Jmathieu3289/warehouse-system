@@ -23,7 +23,7 @@ public class ItemService : IItemService
         return await _context.Items.FindAsync(id);
     }
 
-    public async Task<Item?> UpdateItem(long id, ItemUpdateDto itemDto)
+    public async Task<Item?> UpdateItem(long id, ItemUpdateDto dto)
     {
         var item = await _context.Items.FindAsync(id);
         if (item == null)
@@ -31,8 +31,8 @@ public class ItemService : IItemService
             return null;
         }
 
-        item.Name = itemDto.Name;
-        item.UPC = itemDto.UPC;
+        item.Name = dto.Name;
+        item.UPC = dto.UPC;
         item.DateLastModified = DateTime.Now;
 
         await _context.SaveChangesAsync();
